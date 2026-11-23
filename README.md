@@ -18,6 +18,20 @@ This README contains some information to get you started, but is purposely
 brief.  For more information, please see the full documentation.
 
 
+## Installing as a Python package
+
+POX can also be installed as a package (e.g., with [uv](https://docs.astral.sh/uv/)):
+
+```
+uv add "pox @ git+https://github.com/inpprenable/pox@gar-experimental"
+# with optional dependencies (networkx for discovery/spanning_forest, colorama):
+uv add "pox[all] @ git+https://github.com/inpprenable/pox@gar-experimental"
+```
+
+This provides a `pox` command (also `python -m pox`), used just like
+`./pox.py`.  Your own components can be placed in the current directory
+or in an `ext/` subdirectory of it.
+
 ## Running POX
 
 `pox.py` boots up POX. It takes a list of component names on the command line,

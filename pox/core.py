@@ -65,6 +65,11 @@ def getLogger (name=None, moreFrames=0):
       name = name[len(_path):]
     elif name.startswith(_ext_path):
       name = name[len(_ext_path):]
+    elif name.startswith(os.getcwd() + os.sep):
+      # Component loaded from the current directory (installed POX)
+      name = name[len(os.getcwd() + os.sep):]
+      if name.startswith("ext" + os.sep):
+        name = name[len("ext" + os.sep):]
     elif not matching:
       # This may not work right across platforms, so be cautious.
       n = s[0].f_globals.get('__name__')

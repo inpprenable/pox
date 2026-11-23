@@ -502,6 +502,12 @@ def boot (argv = None):
   base = sys.path[0]
   sys.path.insert(0, os.path.abspath(os.path.join(base, 'pox')))
   sys.path.insert(0, os.path.abspath(os.path.join(base, 'ext')))
+  # When installed as a package (e.g., the "pox" console script), also let
+  # components be loaded from the current directory and its ext/ directory.
+  for d in (os.getcwd(), os.path.join(os.getcwd(), 'ext')):
+    d = os.path.abspath(d)
+    if d not in sys.path:
+      sys.path.append(d)
 
   thread_count = threading.active_count()
 

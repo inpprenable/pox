@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pox"
+version = "0.7.0"
+description = "POX is a networking software platform written in Python (OpenFlow/SDN controller)."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "James McCauley" }]
+requires-python = ">=3.8"
+dependencies = []
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: Apache Software License",
+  "Topic :: System :: Networking",
+]
+
+[project.optional-dependencies]
+# networkx: openflow.discovery graph / openflow.spanning_forest
+graph = ["networkx"]
+# colorama: color logging on Windows
+color = ["colorama"]
+all = ["networkx", "colorama"]
+
+[project.scripts]
+pox = "pox.boot:boot"
+
+[project.urls]
+Homepage = "https://github.com/noxrepo/pox"
+
+[tool.setuptools.packages.find]
+include = ["pox", "pox.*"]
+exclude = ["pox.lib.pxpcap.pxpcap_c*"]
+
+[tool.setuptools.package-data]
+"pox.lib" = ["oui.txt"]
+"pox.log" = ["*.template"]
+"pox.web" = ["www_root/*"]
+"pox.samples" = ["*.cfg", "*.sh"]
