@@ -26,7 +26,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__),
 
 from pox.lib.mock_socket import MockSocket
 from pox.lib.ioworker import IOWorker, RecocoIOLoop
-from nose.tools import eq_
 
 class IOWorkerTest(unittest.TestCase):
   def test_basic_send(self):

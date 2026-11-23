@@ -1037,6 +1037,14 @@ class OpenFlow_01_Task (Task):
         ssl = sslmodule
       except:
         raise RuntimeError("SSL is not available")
+      self._ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+      self._ssl_context.load_cert_chain(certfile = self.ssl_cert,
+                                        keyfile = self.ssl_key)
+      if self.ssl_ca_cert is None:
+        self._ssl_context.verify_mode = ssl.CERT_NONE
+      else:
+        self._ssl_context.verify_mode = ssl.CERT_REQUIRED
+        self._ssl_context.load_verify_locations(cafile = self.ssl_ca_cert)
 
     core.addListener(pox.core.GoingUpEvent, self._handle_GoingUpEvent)
 
@@ -1104,12 +1112,8 @@ class OpenFlow_01_Task (Task):
               new_sock = listener.accept()[0]
 
               if self.ssl_key or self.ssl_cert or self.ssl_ca_cert:
-                cert_reqs = ssl.CERT_REQUIRED
-                if self.ssl_ca_cert is None:
-                  cert_reqs = ssl.CERT_NONE
-                new_sock = ssl.wrap_socket(new_sock, server_side=True,
-                    keyfile = self.ssl_key, certfile = self.ssl_cert,
-                    ca_certs = self.ssl_ca_cert, cert_reqs = cert_reqs,
+                new_sock = self._ssl_context.wrap_socket(new_sock,
+                    server_side = True,
                     do_handshake_on_connect = False,
                     suppress_ragged_eofs = True)
                 #FIXME: We currently do a blocking handshake so that SSL errors

@@ -40,16 +40,16 @@ class ofp_match_test(unittest.TestCase):
 
     # all match entries should start out as wildcarded
     for k,v in ofp_match_data.items():
-         self.assertEquals(getattr(m, k), None, "Attr %s should be wildcarded and reported as None" % k)
-         self.assertEquals(m.wildcards & v[1], v[1])
+         self.assertEqual(getattr(m, k), None, "Attr %s should be wildcarded and reported as None" % k)
+         self.assertEqual(m.wildcards & v[1], v[1])
 
     # try setting and unsetting specific bit-level match entries
     for change in [ ("in_port", 1, OFPFW_IN_PORT), ("dl_vlan", 2, OFPFW_DL_VLAN), ("tp_dst", 22, OFPFW_TP_DST) ]:
       setattr(m, change[0], change[1])
-      self.assertEquals(getattr(m, change[0]), change[1], "Attr %s should have been set to %s" % change[0:2])
-      self.assertEquals(m.wildcards & change[2], 0, "with %s set to %s, wildcard bit %x should get unset" % change)
+      self.assertEqual(getattr(m, change[0]), change[1], "Attr %s should have been set to %s" % change[0:2])
+      self.assertEqual(m.wildcards & change[2], 0, "with %s set to %s, wildcard bit %x should get unset" % change)
       setattr(m, change[0], None)
-      self.assertEquals(m.wildcards & change[2], change[2], "with %s reset from %s, wildcard bit %x should be set again" % change)
+      self.assertEqual(m.wildcards & change[2], change[2], "with %s reset from %s, wildcard bit %x should be set again" % change)
 
   def test_ip_wildcard_magic(self):
     """ ofp_match: check IP wildcard magic"""
@@ -57,7 +57,7 @@ class ofp_match_test(unittest.TestCase):
     # do this for both nw_src and nw_dst
     for (attr, bitmask, shift) in ( ("nw_src", OFPFW_NW_SRC_MASK, OFPFW_NW_SRC_SHIFT), ( "nw_dst", OFPFW_NW_DST_MASK, OFPFW_NW_DST_SHIFT) ):
       m = ofp_match()
-      self.assertEquals(getattr(m, "get_"+attr)(), (None, 0), "get_%s for unset %s should return (None,0)" % (attr, attr))
+      self.assertEqual(getattr(m, "get_"+attr)(), (None, 0), "get_%s for unset %s should return (None,0)" % (attr, attr))
 
       self.assertTrue( ((m.wildcards & bitmask) >> shift) >= 32)
 
@@ -80,7 +80,7 @@ class ofp_match_test(unittest.TestCase):
 
       # reset to 0.0.0.0/0 results in full wildcard
       setattr(m, attr, "0.0.0.0/0")
-      self.assertEquals(getattr(m, "get_"+attr)(), (None, 0), "get_%s for unset %s should return (None,0)" % (attr, attr))
+      self.assertEqual(getattr(m, "get_"+attr)(), (None, 0), "get_%s for unset %s should return (None,0)" % (attr, attr))
       self.assertTrue( ((m.wildcards & bitmask) >> shift) >= 32)
 
   def test_match_with_wildcards(self):
@@ -167,7 +167,7 @@ class ofp_command_test(unittest.TestCase):
     """ check openflow header fields in packed byte array """
     def assert_num(name, start, length, expected):
       val = extract_num(pack, start, length)
-      self.assertEquals(val, expected, "packed header check: %s for ofp type %s should be %d (is %d)" % (name, ofp_type_map[ofp_type], expected, val))
+      self.assertEqual(val, expected, "packed header check: %s for ofp type %s should be %d (is %d)" % (name, ofp_type_map[ofp_type], expected, val))
 
     assert_num("OpenFlow version", 0, 1, 1)
     assert_num("header_type", 1, 1, ofp_type)
@@ -276,7 +276,7 @@ class ofp_command_test(unittest.TestCase):
 
     def test_wildcards(match, expected):
       (packed,) = struct.unpack_from("!L", match.pack(flow_mod=True))
-      self.assertEquals(packed, expected, "packed: %s <> expected: %s" % (show_wildcards(packed), show_wildcards(expected)))
+      self.assertEqual(packed, expected, "packed: %s <> expected: %s" % (show_wildcards(packed), show_wildcards(expected)))
 
     # no dl type specified -> wildcards for nw/dl are cleared
     test_wildcards(ofp_match(), OFPFW_ALL & ~ (OFPFW_NW_TOS | OFPFW_NW_PROTO | OFPFW_NW_SRC_MASK | OFPFW_NW_DST_MASK | OFPFW_TP_SRC | OFPFW_TP_DST))
@@ -336,18 +336,18 @@ class ofp_action_test(unittest.TestCase):
     c(ofp_action_vlan_vid, OFPAT_SET_VLAN_VID, { 'vlan_vid' : 123}, 8 )
     c(ofp_action_vlan_pcp, OFPAT_SET_VLAN_PCP, { 'vlan_pcp' : 123}, 8 )
     p = c(ofp_action_dl_addr.set_dst, OFPAT_SET_DL_DST, { 'dl_addr' : EthAddr("01:02:03:04:05:06").toRaw() }, 16 )
-    self.assertEquals(extract_num(p, 4,6), 0x010203040506)
+    self.assertEqual(extract_num(p, 4,6), 0x010203040506)
     p = c(ofp_action_dl_addr.set_src, OFPAT_SET_DL_SRC, { 'dl_addr' : EthAddr("ff:ee:dd:cc:bb:aa").toRaw() }, 16 )
-    self.assertEquals(extract_num(p, 4,6), 0xffeeddccbbaa, "Ethernet in packed is %x, but should be ff:ee:dd:cc:bb:aa" % extract_num(p, 4, 6))
+    self.assertEqual(extract_num(p, 4,6), 0xffeeddccbbaa, "Ethernet in packed is %x, but should be ff:ee:dd:cc:bb:aa" % extract_num(p, 4, 6))
     p = c(ofp_action_nw_addr.set_dst, OFPAT_SET_NW_DST, { 'nw_addr' : IPAddr("1.2.3.4") }, 8 )
-    self.assertEquals(extract_num(p, 4,4), 0x01020304)
+    self.assertEqual(extract_num(p, 4,4), 0x01020304)
     p = c(ofp_action_nw_addr.set_src, OFPAT_SET_NW_SRC, { 'nw_addr' : IPAddr("127.0.0.1") }, 8 )
-    self.assertEquals(extract_num(p, 4,4), 0x7f000001)
+    self.assertEqual(extract_num(p, 4,4), 0x7f000001)
     c(ofp_action_nw_tos, OFPAT_SET_NW_TOS, { 'nw_tos' : 4 }, 8)
     p = c(ofp_action_tp_port.set_dst, OFPAT_SET_TP_DST, { 'tp_port' : 80 }, 8)
-    self.assertEquals(extract_num(p, 4,2), 80)
+    self.assertEqual(extract_num(p, 4,2), 80)
     p = c(ofp_action_tp_port.set_src, OFPAT_SET_TP_SRC, { 'tp_port' : 22987 }, 8)
-    self.assertEquals(extract_num(p, 4,2), 22987)
+    self.assertEqual(extract_num(p, 4,2), 22987)
 #    c(ofp_action_push_mpls, OFPAT_PUSH_MPLS, {'ethertype':0x8847}, 8)
 #    c(ofp_action_pop_mpls, OFPAT_POP_MPLS, {'ethertype':0x0800}, 8)
 #    c(ofp_action_mpls_dec_ttl, OFPAT_DEC_MPLS_TTL, {}, 8)

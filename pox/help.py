@@ -31,7 +31,7 @@ def _show_args (f,name):
 
   EMPTY = "<Unspecified>"
 
-  argnames,varargs,kws,defaults = inspect.getargspec(f)
+  argnames,varargs,kws,defaults = inspect.getfullargspec(f)[:4]
   argcount = len(argnames)
   defaults = list((f.__defaults__) or [])
   defaults = [EMPTY] * (argcount - len(defaults)) + defaults

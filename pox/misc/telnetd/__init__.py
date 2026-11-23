@@ -660,14 +660,21 @@ def _make_consts ():
     AO (Abort output), AYT (Are You There), EC (Erase Character),
     EL (Erase Line), GA (Go Ahead), SB (Subnegotiation Begin)"""
   cmds = [x.strip() for x in c.split(",")]
-  import telnetlib
+  # These used to come from telnetlib, which was removed in Python 3.13.
+  # Values are from RFC 854 and friends.
+  telnetlib = dict(
+      IAC=255, DONT=254, DO=253, WONT=252, WILL=251, SB=250, GA=249,
+      EL=248, EC=247, AYT=246, AO=245, IP=244, BRK=243, DM=242, NOP=241,
+      SE=240, BINARY=0, ECHO=1, SGA=3, TTYPE=24, LINEMODE=34,
+      SUPPRESS_LOCAL_ECHO=45)
+  telnetlib = {k:bytes([v]) for k,v in telnetlib.items()}
   global _codename
   for c in cmds:
     c = c.split(None, 1)
     dsc = c[0]
     if len(c) > 1: dsc = c[1][1:-1].replace(" ","")
     c = c[0]
-    v = getattr(telnetlib, c)
+    v = telnetlib[c]
     globals()[c] = v
     _codename[v] = c,dsc
 
@@ -675,7 +682,7 @@ def _make_consts ():
   opts = "TTYPE SGA LINEMODE BINARY ECHO SUPPRESS_LOCAL_ECHO"
   opts = opts.split()
   for o in opts:
-    v = getattr(telnetlib, o)
+    v = telnetlib[o]
     globals()[o] = v
     _optname[v] = o
 

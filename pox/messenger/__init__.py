@@ -638,11 +638,12 @@ class MessengerNexus (EventMixin):
     key = key.encode()
 
     key = b32encode(hashlib.md5(key).digest()).upper().replace(b'=',b'')
+    key = key.decode('ascii')
 
     def alphahex (r):
       """ base 16 on digits 'a' through 'p' """
       r=hex(r)[2:].lower()
-      return bytes(((10 if x >= 97 else 49) + x) for x in r)
+      return ''.join(chr((10 if ord(x) >= 97 else 49) + ord(x)) for x in r)
 
     key = alphahex(r) + key
 

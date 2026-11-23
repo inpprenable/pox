@@ -136,19 +136,21 @@ class CometRequestHandler (SplitRequestHandler):
 
   def _doAuth (self):
     if self.auth_function:
-      auth = self.headers.get("Authorization", "").strip().lower()
+      auth = self.headers.get("Authorization", "").strip()
       success = False
-      if auth.startswith("basic "):
+      if auth.lower().startswith("basic "):
         try:
-          auth = base64.decodestring(auth[6:].strip()).split(':', 1)
+          auth = base64.b64decode(auth[6:].strip()).decode("utf-8", "replace").split(':', 1)
           success = self.auth_function(auth[0], auth[1])
         except:
           pass
       if success is not True:
         self.send_response(401, "Authorization Required")
         self.send_header("WWW-Authenticate",  'Basic realm="POX"')
+        self.send_header("Content-Length", "0")
         self.end_headers()
-        return
+        return False
+    return True
 
   def _getSession (self):
     session_key = self.headers.get("X-POX-Messenger-Session-Key")
@@ -166,7 +168,7 @@ class CometRequestHandler (SplitRequestHandler):
     return hmh
 
   def _enter (self):
-    self._doAuth()
+    if not self._doAuth(): return None
     hmh = self._getSession()
     if hmh is None:
       #TODO: return some bad response and log
@@ -189,7 +191,7 @@ class CometRequestHandler (SplitRequestHandler):
     if 'seq' in data:
       if not hmh._check_rx_seq(data['seq']):
         # Bad seq!
-        data = '{"seq":-1,"ses":"%s"}' % (hmh._session_id,)
+        data = ('{"seq":-1,"ses":"%s"}' % (hmh._session_id,)).encode()
         self.send_response(400, "Bad sequence number")
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", len(data))
@@ -204,7 +206,7 @@ class CometRequestHandler (SplitRequestHandler):
         core.callLater(hmh._do_rx_message, payload)
 
     try:
-      data = '{"seq":-1,"ses":"%s"}' % (hmh._session_id,)
+      data = ('{"seq":-1,"ses":"%s"}' % (hmh._session_id,)).encode()
       self.send_response(200, "OK")
       self.send_header("Content-Type", "application/json")
       self.send_header("Content-Length", len(data))
@@ -240,7 +242,7 @@ class CometRequestHandler (SplitRequestHandler):
     if hmh._quitting:
       #NOTE: we don't drain the messages first, but maybe we should?
       try:
-        data = '{"seq":-1,"ses":"%s"}' % (hmh._session_id,)
+        data = ('{"seq":-1,"ses":"%s"}' % (hmh._session_id,)).encode()
         self.send_response(200, "OK")
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", len(data))
@@ -260,6 +262,7 @@ class CometRequestHandler (SplitRequestHandler):
     seq = hmh._new_tx_seq()
     data = '{"seq":%i,"ses":"%s","data":[%s]}' % (seq, hmh._session_id,
                                                   ','.join(data))
+    data = data.encode()
     try:
       self.send_response(200, "OK")
       self.send_header("Content-Type", "application/json")

@@ -29,6 +29,7 @@ import inspect
 import time
 import os
 import signal
+import sys
 
 _path = inspect.stack()[0][1]
 _ext_path = _path[0:_path.rindex(os.sep)]
@@ -393,24 +394,19 @@ class POXCore (EventMixin):
 
     log.debug("Running on " + self._get_python_version())
     log.debug("Platform is " + self._get_platform_info())
-    try:
-      import platform
-      vers = '.'.join(platform.python_version().split(".")[:2])
-    except:
-      vers = 'an unknown version'
+    vers = '.'.join(map(str, sys.version_info[:2]))
     def vwarn (*args):
       l = logging.getLogger("version")
       if not l.isEnabledFor(logging.WARNING):
         l.setLevel(logging.WARNING)
-      l.warn(*args)
-    good_versions = ("3.6", "3.7", "3.8", "3.9")
-    if vers not in good_versions:
-      vwarn("POX requires one of the following versions of Python: %s",
-             " ".join(good_versions))
+      l.warning(*args)
+    min_version = (3, 8)
+    max_version = (3, 14) # Newest version POX has been tested with
+    if not (min_version <= sys.version_info[:2] <= max_version):
+      vwarn("POX supports Python %s to %s.",
+            '.'.join(map(str, min_version)), '.'.join(map(str, max_version)))
       vwarn("You're running Python %s.", vers)
       vwarn("If you run into problems, try using a supported version.")
-    else:
-      vwarn("Support for Python 3 is experimental.")
 
     self.starting_up = False
     self.raiseEvent(GoingUpEvent())

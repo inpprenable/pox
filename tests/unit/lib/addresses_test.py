@@ -19,13 +19,6 @@ import os.path
 from pox.lib.addresses import *
 from copy import copy
 
-try:
-  import nose
-  _fail_decorator = nose.tools.raises(RuntimeError)
-except:
-  _fail_decorator = unittest.expectedFailure
-
-
 class MockEthAddrTest(unittest.TestCase):
   def test_basic(self):
     self.assertEqual("00:11:22:33:44:55", str(EthAddr("00:11:22:33:44:55")),
@@ -51,9 +44,9 @@ class MockIPAddrTest (unittest.TestCase):
     self.assertTrue(str(IPAddr("224.0.0.9").multicast_ethernet_address)
         == "01:00:5e:00:00:09")
 
-  @_fail_decorator
   def test_bad_cidr_fail (self):
-    parse_cidr("192.168.1.0/16", infer=False, allow_host=False)
+    with self.assertRaises(RuntimeError):
+      parse_cidr("192.168.1.0/16", infer=False, allow_host=False)
 
   def test_bad_cidr_succeed (self):
     a,b=parse_cidr("192.168.1.0/255.255.255.0", infer=False, allow_host=False)

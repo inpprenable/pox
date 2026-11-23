@@ -54,9 +54,104 @@ import os
 import socket
 import posixpath
 import urllib.request, urllib.parse, urllib.error
-import cgi
+import html
 import errno
 from io import StringIO, BytesIO
+import email.parser
+import email.policy
+from email.message import Message
+
+
+# The cgi module was removed in Python 3.13; these are small replacements
+# for the parts of it we used.
+
+def _escape (s):
+  """
+  HTML-escape a string (replaces the old cgi escape function)
+  """
+  return html.escape(s, quote=True)
+
+
+def _parse_header (value):
+  """
+  Parse a header like Content-Type into (value, params dict)
+
+  Replaces the old cgi parse_header function.
+  """
+  m = Message()
+  m['content-type'] = value or ''
+  params = m.get_params()
+  if not params: return '', {}
+  return params[0][0].lower(), {k.lower():v for k,v in params[1:]}
+
+
+def _read_body (handler):
+  """
+  Read the request body of a handler (based on Content-Length)
+  """
+  try:
+    length = int(handler.headers.get('content-length', 0) or 0)
+  except ValueError:
+    length = 0
+  if length <= 0: return b''
+  return handler.rfile.read(length)
+
+
+class FormField (object):
+  """
+  A field from a submitted form
+
+  Has the most commonly used attributes of the old cgi FieldStorage fields
+  (name, value, filename, file, type).
+  """
+  def __init__ (self, name, value, filename=None, content_type=None):
+    self.name = name
+    self.filename = filename
+    self.type = content_type
+    self.value = value
+
+  @property
+  def file (self):
+    v = self.value
+    if isinstance(v, str): v = v.encode('utf-8')
+    return BytesIO(v)
+
+  def __repr__ (self):
+    return "FormField(%r, filename=%r)" % (self.name, self.filename)
+
+
+def parse_form (handler):
+  """
+  Parse the form data in a request body
+
+  Supports application/x-www-form-urlencoded and multipart/form-data.
+  Returns a dict from field name to FormField (if a field is given more
+  than once, only the last value is kept).  File fields have bytes values;
+  other fields have str values.
+  """
+  ctype = handler.headers.get('content-type', '')
+  mime, params = _parse_header(ctype)
+  body = _read_body(handler)
+  fields = {}
+  if mime == 'multipart/form-data':
+    msg = email.parser.BytesParser(policy=email.policy.HTTP).parsebytes(
+        b'Content-Type: ' + ctype.encode('latin-1') + b'\r\n\r\n' + body)
+    if not msg.is_multipart(): return fields
+    for part in msg.iter_parts():
+      name = part.get_param('name', header='content-disposition')
+      if name is None: continue
+      filename = part.get_filename()
+      value = part.get_payload(decode=True) or b''
+      if filename is None:
+        charset = part.get_content_charset() or 'utf-8'
+        value = value.decode(charset, 'replace')
+      fields[name] = FormField(name, value, filename,
+                               part.get_content_type())
+  elif mime == 'application/x-www-form-urlencoded':
+    q = urllib.parse.parse_qsl(body.decode('latin-1'), keep_blank_values=True)
+    for k,v in q:
+      fields[k] = FormField(k, v)
+  return fields
 
 log = core.getLogger()
 try:
@@ -180,8 +275,7 @@ class POXCookieGuardMixin (object):
     if self.command != "POST": return
 
     # Read rest of input to avoid connection reset
-    cgi.FieldStorage( fp = self.rfile, headers = self.headers,
-                      environ={ 'REQUEST_METHOD':'POST' } )
+    _read_body(self)
 
   def _get_cookieguard_cookie (self):
     return self._pox_cookieguard_secret
@@ -209,7 +303,7 @@ class POXCookieGuardMixin (object):
       please <a href="%s">continue to %s</a>.
       </body>
       </html>
-      """ % (target, cgi.escape(target))).encode())
+      """ % (target, _escape(target))).encode())
 
   def _do_cookieguard_set_cookie (self, requested, bad_cookie):
     """
@@ -401,10 +495,10 @@ class CoreHandler (SplitRequestHandler):
     r += "<ul>"
     for k in sorted(core.components):
       v = core.components[k]
-      r += "<li>%s - %s</li>\n" % (cgi.escape(str(k)), cgi.escape(str(v)))
+      r += "<li>%s - %s</li>\n" % (_escape(str(k)), _escape(str(v)))
     r += "</ul>\n\n<h2>Web Prefixes</h2>"
     r += "<ul>"
-    m = [list(map(cgi.escape, map(str, [x[0],x[1],x[1].format_info(x[3])])))
+    m = [list(map(_escape, map(str, [x[0],x[1],x[1].format_info(x[3])])))
          for x in self.args.matches]
     m.sort()
     for v in m:
@@ -457,7 +551,7 @@ class StaticContentHandler (SplitRequestHandler, SimpleHTTPRequestHandler):
     d.sort(key=str.lower)
     r = StringIO()
     r.write("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">\n")
-    path = posixpath.join(self.prefix, cgi.escape(self.path).lstrip("/"))
+    path = posixpath.join(self.prefix, _escape(self.path).lstrip("/"))
     r.write("<html><head><title>" + path + "</title></head>\n")
     r.write("<body><pre>")
     parts = path.rstrip("/").split("/")
@@ -465,7 +559,7 @@ class StaticContentHandler (SplitRequestHandler, SimpleHTTPRequestHandler):
     for i,part in enumerate(parts):
       link = urllib.parse.quote("/".join(parts[:i+1]))
       if i > 0: part += "/"
-      r.write('<a href="%s">%s</a>' % (link, cgi.escape(part)))
+      r.write('<a href="%s">%s</a>' % (link, _escape(part)))
     r.write("\n" + "-" * (0+len(path)) + "\n")
 
     dirs = []
@@ -479,7 +573,7 @@ class StaticContentHandler (SplitRequestHandler, SimpleHTTPRequestHandler):
 
     def entry (n, rest=''):
       link = urllib.parse.quote(n)
-      name = cgi.escape(n)
+      name = _escape(n)
       r.write('<a href="%s">%s</a>\n' % (link,name+rest))
 
     for f in dirs:
@@ -542,23 +636,32 @@ def wrapRequestHandler (handlerClass):
               (SplitRequestHandler, handlerClass, object), {})
 
 
-from http.server import CGIHTTPRequestHandler
-class SplitCGIRequestHandler (SplitRequestHandler,
-                              CGIHTTPRequestHandler, object):
-  """
-  Runs CGIRequestHandler serving from an arbitrary path.
-  This really should be a feature of CGIRequestHandler and the way of
-  implementing it here is scary and awful, but it at least sort of works.
-  """
-  __lock = threading.Lock()
-  def _split_dispatch (self, command):
-    with self.__lock:
-      olddir = os.getcwd()
-      try:
-        os.chdir(self.args)
-        return SplitRequestHandler._split_dispatch(self, command)
-      finally:
-        os.chdir(olddir)
+try:
+  # Deprecated in Python 3.13 and removed in 3.15
+  import warnings
+  with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
+    from http.server import CGIHTTPRequestHandler
+except ImportError:
+  CGIHTTPRequestHandler = None
+
+if CGIHTTPRequestHandler is not None:
+  class SplitCGIRequestHandler (SplitRequestHandler,
+                                CGIHTTPRequestHandler, object):
+    """
+    Runs CGIRequestHandler serving from an arbitrary path.
+    This really should be a feature of CGIRequestHandler and the way of
+    implementing it here is scary and awful, but it at least sort of works.
+    """
+    __lock = threading.Lock()
+    def _split_dispatch (self, command):
+      with self.__lock:
+        olddir = os.getcwd()
+        try:
+          os.chdir(self.args)
+          return SplitRequestHandler._split_dispatch(self, command)
+        finally:
+          os.chdir(olddir)
 
 
 class SplitterRequestHandler (BaseHTTPRequestHandler, BasicAuthMixin,
@@ -704,11 +807,15 @@ class SplitThreadedServer(ThreadingMixIn, HTTPServer, EventMixin):
       cert_reqs = ssl.CERT_REQUIRED
       if self.ssl_client_certs is None:
         cert_reqs = ssl.CERT_NONE
-      self.socket = ssl.wrap_socket(self.socket, server_side=True,
-          keyfile = self.ssl_server_key, certfile = self.ssl_server_cert,
-          ca_certs = self.ssl_client_certs, cert_reqs = cert_reqs,
+      ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+      ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+      ctx.load_cert_chain(certfile = self.ssl_server_cert,
+                          keyfile = self.ssl_server_key)
+      ctx.verify_mode = cert_reqs
+      if self.ssl_client_certs:
+        ctx.load_verify_locations(cafile = self.ssl_client_certs)
+      self.socket = ctx.wrap_socket(self.socket, server_side=True,
           do_handshake_on_connect = True,
-          ssl_version = ssl.PROTOCOL_TLSv1_2,
           suppress_ragged_eofs = True)
       self.ssl_enabled = True
 
@@ -893,14 +1000,11 @@ class FileUploadHandler (SplitRequestHandler):
       self.wfile.write(r.encode())
 
   def do_POST (self):
-    mime,params = cgi.parse_header(self.headers.get('content-type'))
+    mime,params = _parse_header(self.headers.get('content-type'))
     if mime != 'multipart/form-data':
       self.send_error(400, "Expected form data")
       return
-    #query = cgi.parse_multipart(self.rfile, params)
-    #data = query.get("upload")
-    data = cgi.FieldStorage( fp = self.rfile, headers = self.headers,
-                             environ={ 'REQUEST_METHOD':'POST' } )
+    data = parse_form(self)
     if not data or "upload" not in data:
       self.send_error(400, "Expected upload data")
       return

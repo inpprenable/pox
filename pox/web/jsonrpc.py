@@ -35,6 +35,7 @@ set it to 1 if you don't have anything better to set it to.
 """
 
 import json
+import base64
 import sys
 from pox.web.webcore import *
 from pox.core import core
@@ -123,7 +124,7 @@ class JSONRPCHandler (SplitRequestHandler):
     success = False
     if auth.lower().startswith("basic "):
       try:
-        auth = base64.decodestring(auth[6:].strip()).split(':', 1)
+        auth = base64.b64decode(auth[6:].strip()).decode("utf-8", "replace").split(':', 1)
         success = self.auth_function(auth[0], auth[1])
       except:
         pass
@@ -209,6 +210,7 @@ class JSONRPCHandler (SplitRequestHandler):
       response = json.dumps(response, default=str, **dumps_opts)
       response = response.strip()
       if len(response) and not response.endswith("\n"): response += "\n"
+      response = response.encode("utf-8")
       try:
         self.send_response(200, "OK")
         self.send_header("Content-Type", "application/json")
