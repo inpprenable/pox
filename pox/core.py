@@ -31,6 +31,12 @@ import os
 import signal
 import sys
 
+# Branche tp-devops (TP DevOps, BUT R&T) : borne haute volontaire, pour que
+# les étudiants la reportent dans le requires-python de leur projet.
+if sys.version_info[:2] >= (3, 14):
+  raise RuntimeError("POX (branche tp-devops) ne supporte pas Python >= 3.14 ;"
+                     " vous utilisez Python %d.%d" % sys.version_info[:2])
+
 _path = inspect.stack()[0][1]
 _ext_path = _path[0:_path.rindex(os.sep)]
 _ext_path = os.path.dirname(_ext_path) + os.sep
@@ -401,7 +407,7 @@ class POXCore (EventMixin):
         l.setLevel(logging.WARNING)
       l.warning(*args)
     min_version = (3, 8)
-    max_version = (3, 14) # Newest version POX has been tested with
+    max_version = (3, 13) # Newest version POX has been tested with
     if not (min_version <= sys.version_info[:2] <= max_version):
       vwarn("POX supports Python %s to %s.",
             '.'.join(map(str, min_version)), '.'.join(map(str, max_version)))

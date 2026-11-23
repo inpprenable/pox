@@ -9,7 +9,7 @@ description = "POX is a networking software platform written in Python (OpenFlow
 readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [{ name = "James McCauley" }]
-requires-python = ">=3.8"
+requires-python = ">=3.8,<3.14"
 dependencies = []
 classifiers = [
   "Programming Language :: Python :: 3",
@@ -19,7 +19,6 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3.14",
   "License :: OSI Approved :: Apache Software License",
   "Topic :: System :: Networking",
 ]
